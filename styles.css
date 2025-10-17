@@ -58,17 +58,188 @@ body {
     max-width: 900px;
 }
 
-.score-panel {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 800px;
-    padding: 14px 24px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    margin-bottom: 12px;
-    border: 2px solid #FFC907;
+/* Theme */
+:root {
+  --brand: #ffd200;        /* charity: water yellow */
+  --brand-ink: #121212;
+  --brand-ink-muted: #333;
+  --surface: #ffffff;
+  --surface-alt: #f6f6f6;
+  --line: rgba(0,0,0,0.12);
+  --shadow: 0 6px 16px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+  --radius: 10px;
+  --focus: 0 0 0 3px rgba(255,210,0,0.45);
+}
+
+/* Controls: difficulty + goal */
+.controls-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.controls-inline label {
+  color: var(--brand-ink-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.controls-inline select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 6px 32px 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(to bottom, #fff, #fff) padding-box,
+    url("data:image/svg+xml,%3Csvg width='14' height='10' viewBox='0 0 14 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 2l5 6 5-6' stroke='%23121212' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center / 14px 10px;
+  color: var(--brand-ink);
+  cursor: pointer;
+  transition: box-shadow .2s ease, border-color .2s ease;
+}
+
+.controls-inline select:focus {
+  outline: none;
+  box-shadow: var(--focus);
+  border-color: var(--brand);
+}
+
+.controls-inline .goal {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px dashed rgba(0,0,0,0.18);
+  background: #fff7c2;
+  font-weight: 700;
+  color: #665200;
+}
+
+/* Shared button styles (Start / Play Again) */
+#start-btn,
+#replay-btn,
+.btn.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--brand-ink);
+  background: var(--brand);
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform .05s ease, filter .2s ease, box-shadow .2s ease;
+}
+
+#start-btn:hover,
+#replay-btn:hover,
+.btn.btn-primary:hover {
+  filter: saturate(1.1) brightness(1.02);
+}
+
+#start-btn:active,
+#replay-btn:active,
+.btn.btn-primary:active {
+  transform: translateY(1px);
+}
+
+#start-btn:focus-visible,
+#replay-btn:focus-visible,
+.btn.btn-primary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus), var(--shadow);
+}
+
+#start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Drops (context: keep subtle polish) */
+#game-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.drop {
+  position: absolute;
+  top: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.drop.good {
+  background: #3aa0ff;
+  color: white;
+}
+
+.drop.bad {
+  background: #ff7b7b;
+  color: white;
+}
+
+/* collected effect */
+.drop.collected {
+  transform: scale(0.6) rotate(-20deg);
+  opacity: 0.8;
+}
+
+/* End overlay modal */
+.end-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  animation: fadeIn .18s ease-out both;
+}
+
+.end-box {
+  background: var(--surface);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow);
+  padding: 20px 22px 18px;
+  border: 1px solid var(--line);
+  min-width: 260px;
+  max-width: min(90vw, 420px);
+  text-align: center;
+  position: relative;
+  animation: popIn .16s ease-out both;
+}
+
+.end-box::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 6px;
+  background: var(--brand);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.end-text {
+  margin: 10px 0 14px;
+  font-weight: 700;
+  color: var(--brand-ink);
 }
 
 .timer, .score {
@@ -103,26 +274,6 @@ body {
     object-fit: contain;
     user-select: none;
     -webkit-user-select: none;
-}
-
-#start-btn {
-    padding: 10px 28px;
-    background: #FFC907;
-    color: #1A1A1A;
-    border: 2px solid #FFC907;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: 700;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    transition: background 0.2s, transform 0.1s;
-}
-
-#start-btn:hover {
-    background: #fff;
-    color: #FFC907;
-    border-color: #FFC907;
-    transform: scale(1.05);
 }
 
 .water-drop {
@@ -186,6 +337,78 @@ body {
     letter-spacing: 1px;
 }
 
+/* Multiplier badge (appears when multiplier > 1) */
+.multiplier-badge {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 800;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+
+/* Floating +1 / -1 feedback */
+.float-text {
+  position: absolute;
+  pointer-events: none;
+  font-weight: 800;
+  font-size: 16px;
+  transform: translate(-50%, 10px);
+  opacity: 0;
+  transition: transform .6s ease, opacity .6s ease;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15);
+  z-index: 3;
+}
+.float-text.show {
+  transform: translate(-50%, -24px);
+  opacity: 1;
+}
+.float-text.good { color: #1a7fff; }
+.float-text.bad  { color: #d64545; }
+
+/* Ripple effect where drop is clicked/lands */
+.ripple {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  opacity: .6;
+  border: 2px solid currentColor;
+  animation: ripple .6s ease-out forwards;
+  z-index: 2;
+}
+.ripple.good { color: #1a7fff; }
+.ripple.bad  { color: #d64545; }
+@keyframes ripple {
+  to { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+
+/* Shake container briefly on bad clicks */
+#game-container.shake {
+  animation: shake .3s linear;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-4px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px) scale(.98) }
+  to   { opacity: 1; transform: translateY(0) scale(1) }
+}
+
 @keyframes dropFall {
     from {
         transform: translateY(-20px);
@@ -193,6 +416,12 @@ body {
     to {
         transform: translateY(600px);
     }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .end-overlay, .end-box { animation: none !important; }
+  #start-btn, #replay-btn, .btn.btn-primary { transition: none !important; }
 }
 
 @media (max-width: 850px) {
@@ -212,4 +441,53 @@ body {
         gap: 10px;
         width: 98vw;
     }
+}
+
+/* Footer styles */
+.site-footer {
+  width: 100%;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.site-footer .footer-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  color: var(--brand-ink);
+  text-decoration: none;
+  font-weight: 700;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 999px;
+  transition: box-shadow .2s ease, transform .05s ease, filter .2s ease;
+}
+
+.footer-link:hover {
+  box-shadow: var(--shadow);
+  filter: brightness(1.02);
+}
+
+.footer-link:active {
+  transform: translateY(1px);
+}
+
+.footer-link.footer-cta {
+  background: var(--brand);
+  border-color: transparent;
+  color: var(--brand-ink);
+}
+
+/* Responsive tweak */
+@media (max-width: 850px) {
+  .site-footer .footer-links {
+    gap: 10px;
+  }
 }

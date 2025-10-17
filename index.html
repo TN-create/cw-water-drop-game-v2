@@ -15,12 +15,34 @@
         <div class="score-panel">
             <div class="score">Score: <span id="score">0</span></div>
             <div class="timer">Time: <span id="time">30</span>s</div>
+            <!-- New: difficulty selector and goal display -->
+            <div class="controls-inline">
+                <label for="difficulty">Difficulty:</label>
+                <select id="difficulty" aria-label="Select difficulty">
+                    <option value="Normal" selected>Normal</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Hard">Hard</option>
+                </select>
+                <div class="goal">Goal: <span id="goal">15</span></div>
+            </div>
             <button id="start-btn">Start Game</button>
         </div>
         <div id="game-container">
             <!-- Watermark logo for branding -->
             <img src="img/cw-logo-horizontal.png" alt="charity: water watermark" class="cw-watermark" />
         </div>
+
+        <!-- New: Site footer with links -->
+        <footer class="site-footer" aria-label="charity: water links">
+            <div class="footer-links">
+                <a class="footer-link" href="https://www.charitywater.org/" target="_blank" rel="noopener noreferrer" aria-label="Visit charity: water website">
+                    Learn more at charitywater.org
+                </a>
+                <a class="footer-link footer-cta" href="https://www.charitywater.org/donate" target="_blank" rel="noopener noreferrer" aria-label="Donate to charity: water">
+                    Donate
+                </a>
+            </div>
+        </footer>
     </div>
     <script src="script.js"></script>
 </body>

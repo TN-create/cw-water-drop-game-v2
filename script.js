@@ -1,131 +1,250 @@
-// Variables to control game state
-let gameRunning = false; // Keeps track of whether game is active or not
-let dropMaker; // Will store our timer that creates drops regularly
-let score = 0;
-let timer = 30;
-let timerInterval;
-const scoreDisplay = document.getElementById("score");
-const timeDisplay = document.getElementById("time");
-const gameContainer = document.getElementById("game-container");
+// Full game script (replaces or creates script.js)
+(() => {
+  const DIFFICULTIES = {
+    Easy:    { time: 45, target: 10, spawnInterval: 1000, goodPoints: 1, badPenalty: 1 },
+    Normal:  { time: 30, target: 15, spawnInterval: 700,  goodPoints: 1, badPenalty: 1 },
+    Hard:    { time: 20, target: 20, spawnInterval: 450,  goodPoints: 1, badPenalty: 2 },
+  };
 
-// Winning and losing messages
-const winMessages = [
-  "Amazing! You brought clean water to a village!",
-  "Great job! You're a water hero!",
-  "You win! Every drop counts!",
-  "Fantastic! You made a big splash for charity!"
-];
-const loseMessages = [
-  "Try again! Every drop helps.",
-  "Keep going! You can do it.",
-  "Almost there! Give it another shot.",
-  "Don't give up! Water is life."
-];
+  const gameContainer = document.getElementById('game-container');
+  const startBtn = document.getElementById('start-btn');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const goalEl = document.getElementById('goal');
+  const difficultySelect = document.getElementById('difficulty');
+  const scorePanel = document.querySelector('.score-panel'); // for multiplier badge
 
-// Wait for button click to start the game
-document.getElementById("start-btn").addEventListener("click", startGame);
+  // New: streak and multiplier
+  const MAX_MULTIPLIER = 3;
+  const STREAK_STEP = 5;
+  let streak = 0;
+  let multiplier = 1;
 
-function startGame() {
-  // Prevent multiple games from running at once
-  if (gameRunning) return;
+  let timer = null;
+  let spawnTimer = null;
+  let remainingTime = 30;
+  let score = 0;
+  let currentGoal = 15;
+  let currentConfig = DIFFICULTIES.Normal;
+  let running = false;
 
-  gameRunning = true;
-  score = 0;
-  timer = 30;
-  scoreDisplay.textContent = score;
-  timeDisplay.textContent = timer;
-  clearMessages();
-  clearDrops();
+  function applyDifficulty(mode) {
+    currentConfig = DIFFICULTIES[mode] || DIFFICULTIES.Normal;
+    remainingTime = currentConfig.time;
+    currentGoal = currentConfig.target;
+    timeEl.textContent = remainingTime;
+    goalEl.textContent = currentGoal;
+    score = 0;
+    scoreEl.textContent = score;
 
-  // Create new drops every second (1000 milliseconds)
-  dropMaker = setInterval(createDrop, 1000);
-  timerInterval = setInterval(updateTimer, 1000);
-}
+    // reset streak & multiplier and UI
+    streak = 0;
+    multiplier = 1;
+    updateMultiplierUI();
+    purgeTransientUI();
+  }
 
-function createDrop() {
-  // Create a new div element that will be our water drop
-  const drop = document.createElement("div");
-  drop.className = "water-drop";
+  // New: show/hide/update a multiplier badge near the score
+  function updateMultiplierUI() {
+    let badge = document.getElementById('multiplier-badge');
+    if (multiplier <= 1) {
+      if (badge) badge.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'multiplier-badge';
+      badge.className = 'multiplier-badge';
+      scorePanel?.appendChild(badge);
+    }
+    badge.textContent = `x${multiplier}`;
+  }
 
-  // Make drops different sizes for visual variety
-  const initialSize = 60;
-  const sizeMultiplier = Math.random() * 0.8 + 0.5;
-  const size = initialSize * sizeMultiplier;
-  drop.style.width = drop.style.height = `${size}px`;
+  // New: remove transient UI elements (float texts, ripples)
+  function purgeTransientUI() {
+    gameContainer.querySelectorAll('.float-text, .ripple').forEach(n => n.remove());
+    gameContainer.classList.remove('shake');
+  }
 
-  // Position the drop randomly across the game width
-  // Subtract 60 pixels to keep drops fully inside the container
-  const gameWidth = gameContainer.offsetWidth;
-  const xPosition = Math.random() * (gameWidth - 60);
-  drop.style.left = xPosition + "px";
-  drop.style.animationDuration = "4s";
+  // New: floating feedback text at click position
+  function createFloatingText(x, y, text, kind) {
+    const el = document.createElement('div');
+    el.className = `float-text ${kind}`;
+    el.textContent = text;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    gameContainer.appendChild(el);
+    // animate in next frame
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => el.remove(), 900);
+  }
 
-  // Add the new drop to the game screen
-  gameContainer.appendChild(drop);
+  // New: ripple effect at a position
+  function createRipple(x, y, kind) {
+    const r = document.createElement('span');
+    r.className = `ripple ${kind}`;
+    r.style.left = `${x}px`;
+    r.style.top = `${y}px`;
+    gameContainer.appendChild(r);
+    setTimeout(() => r.remove(), 650);
+  }
 
-  // Remove drops that reach the bottom (weren't clicked)
-  drop.addEventListener("animationend", () => {
-    drop.remove();
+  function startGame() {
+    if (running) return;
+    const selected = difficultySelect.value;
+    applyDifficulty(selected);
+    running = true;
+    startBtn.disabled = true;
+    difficultySelect.disabled = true;
+
+    timer = setInterval(() => {
+      remainingTime -= 1;
+      timeEl.textContent = remainingTime;
+      if (remainingTime <= 0) {
+        endGame(false);
+      }
+    }, 1000);
+
+    spawnTimer = setInterval(spawnDrop, currentConfig.spawnInterval);
+    // immediately spawn one to make the game feel responsive
+    spawnDrop();
+  }
+
+  function endGame(won) {
+    running = false;
+    clearInterval(timer);
+    clearInterval(spawnTimer);
+    startBtn.disabled = false;
+    difficultySelect.disabled = false;
+    // simple end feedback
+    const message = won ? `You win! Score: ${score}` : `Time's up. Score: ${score}`;
+    // brief DOM feedback: overlay element
+    showEndOverlay(message);
+  }
+
+  function showEndOverlay(text) {
+    // remove existing overlay if any
+    const existing = document.getElementById('end-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'end-overlay';
+    overlay.className = 'end-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.innerHTML = `
+      <div class="end-box" role="document">
+        <p class="end-text">${text}</p>
+        <button id="replay-btn" class="btn btn-primary" aria-label="Play again">Play Again</button>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const replayBtn = document.getElementById('replay-btn');
+    // focus for accessibility
+    setTimeout(() => replayBtn?.focus(), 0);
+
+    const cleanup = () => {
+      overlay.remove();
+      // reset to current difficulty defaults
+      applyDifficulty(difficultySelect.value);
+    };
+
+    replayBtn.addEventListener('click', cleanup);
+    // Esc key closes modal and resets
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cleanup();
+      }
+    });
+    // enable key handling
+    overlay.tabIndex = -1;
+    overlay.focus();
+  }
+
+  function spawnDrop() {
+    if (!running) return;
+    const drop = document.createElement('div');
+    const badChance = difficultySelect.value === 'Hard' ? 0.35 : 0.2;
+    const isBad = Math.random() < badChance;
+    drop.className = `drop ${isBad ? 'bad' : 'good'}`;
+
+    const rect = gameContainer.getBoundingClientRect();
+    const left = Math.max(10, Math.random() * (rect.width - 60));
+    drop.style.left = `${left}px`;
+    gameContainer.appendChild(drop);
+
+    const fallDuration = 3000; // ms
+    const start = performance.now();
+    function animate(now) {
+      const elapsed = now - start;
+      const progress = Math.min(1, elapsed / fallDuration);
+      drop.style.transform = `translateY(${progress * (rect.height - 50)}px)`;
+      if (progress < 1 && document.body.contains(drop)) {
+        requestAnimationFrame(animate);
+      } else {
+        // reached bottom -> ripple and remove
+        if (document.body.contains(drop)) {
+          const x = parseFloat(drop.style.left) + 18;
+          const y = rect.height - 24;
+          createRipple(x, y, isBad ? 'bad' : 'good');
+          drop.remove();
+        }
+      }
+    }
+    requestAnimationFrame(animate);
+
+    // click handler with visual + DOM feedback
+    drop.addEventListener('click', (e) => {
+      if (!running) return;
+
+      const containerRect = gameContainer.getBoundingClientRect();
+      const x = e.clientX - containerRect.left;
+      const y = e.clientY - containerRect.top;
+
+      if (isBad) {
+        // penalty, ripple, shake, reset streak/multiplier
+        score = Math.max(0, score - currentConfig.badPenalty);
+        streak = 0;
+        multiplier = 1;
+        updateMultiplierUI();
+        createFloatingText(x, y, `-${currentConfig.badPenalty}`, 'bad');
+        createRipple(x, y, 'bad');
+        gameContainer.classList.add('shake');
+        setTimeout(() => gameContainer.classList.remove('shake'), 320);
+      } else {
+        // reward, floating + ripple, streak/multiplier handling
+        streak += 1;
+        if (streak % STREAK_STEP === 0 && multiplier < MAX_MULTIPLIER) {
+          multiplier += 1;
+        }
+        const gained = currentConfig.goodPoints * multiplier;
+        score += gained;
+        updateMultiplierUI();
+        createFloatingText(x, y, `+${gained}`, 'good');
+        createRipple(x, y, 'good');
+      }
+
+      scoreEl.textContent = score;
+
+      // visual feedback then remove
+      drop.classList.add('collected');
+      setTimeout(() => drop.remove(), 150);
+
+      if (score >= currentGoal) {
+        endGame(true);
+      }
+    });
+
+    setTimeout(() => drop.remove(), fallDuration + 500);
+  }
+
+  // wire controls
+  startBtn.addEventListener('click', startGame);
+  difficultySelect.addEventListener('change', () => {
+    // update goal/time preview when difficulty changes
+    applyDifficulty(difficultySelect.value);
   });
 
-  drop.addEventListener("click", () => {
-    if (!gameRunning) return;
-    score++;
-    scoreDisplay.textContent = score;
-    drop.remove();
-  });
-}
-
-function updateTimer() {
-  timer--;
-  timeDisplay.textContent = timer;
-  if (timer <= 0) {
-    endGame();
-  }
-}
-
-function endGame() {
-  gameRunning = false;
-  clearInterval(dropMaker);
-  clearInterval(timerInterval);
-  showEndMessage();
-}
-
-function showEndMessage() {
-  // Remove remaining drops
-  clearDrops();
-  // Create message element
-  let message = document.createElement("div");
-  message.className = "end-message";
-  message.style.position = "absolute";
-  message.style.top = "50%";
-  message.style.left = "50%";
-  message.style.transform = "translate(-50%, -50%)";
-  message.style.background = "#fff";
-  message.style.border = "2px solid #FFC907";
-  message.style.borderRadius = "12px";
-  message.style.padding = "32px 40px";
-  message.style.fontSize = "2rem";
-  message.style.fontWeight = "bold";
-  message.style.color = "#1A1A1A";
-  message.style.textAlign = "center";
-  message.style.boxShadow = "0 4px 24px rgba(0,0,0,0.10)";
-  message.style.zIndex = "10";
-
-  if (score >= 20) {
-    message.textContent = winMessages[Math.floor(Math.random() * winMessages.length)];
-  } else {
-    message.textContent = loseMessages[Math.floor(Math.random() * loseMessages.length)];
-  }
-  gameContainer.appendChild(message);
-}
-
-function clearMessages() {
-  const msg = gameContainer.querySelector(".end-message");
-  if (msg) msg.remove();
-}
-
-function clearDrops() {
-  const drops = gameContainer.querySelectorAll(".water-drop, .bad-drop");
-  drops.forEach(drop => drop.remove());
-}
+  // initialize UI on load
+  applyDifficulty(difficultySelect.value);
+})();
